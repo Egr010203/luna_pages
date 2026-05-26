@@ -24,6 +24,9 @@ jobs:
 
       - name: Deploy
         working-directory: ./frontend
-        run: npm run deploy
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          npm run deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
