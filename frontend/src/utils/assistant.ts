@@ -18,7 +18,7 @@ if (typeof window !== 'undefined' && !('__wsPatchApplied' in window)) {
         // Молча игнорируем — библиотека сама откроет новое соединение
         return;
       }
-      super.send(data);
+      super.send(data as string | Blob | ArrayBuffer | ArrayBufferView);
     }
   }
 
