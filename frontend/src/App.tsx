@@ -129,6 +129,47 @@ export const App = () => {
           });
           break;
         }
+        case 'START_CYCLE_BACKDATED': {
+          console.log('Бот прислал команду начать цикл задним числом', action.payload);
+          const { day, month, year } = action.payload || {};
+          if (day && month) {
+            const targetYear = year || new Date().getFullYear();
+            const targetDate = new Date(targetYear, month - 1, day);
+            const dateStr = targetDate.toISOString();
+            
+            setCycles((prevList) => {
+               const newList = prevList.map(c => ({ ...c }));
+               const last = newList[newList.length - 1];
+               if (last && !last.endDate) {
+                   last.endDate = dateStr;
+               }
+               newList.push({ startDate: dateStr, endDate: null });
+               newList.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+               localStorage.setItem('cycles', JSON.stringify(newList));
+               return newList;
+            });
+          }
+          break;
+        }
+        case 'END_CYCLE_BACKDATED': {
+          console.log('Бот прислал команду закончить цикл задним числом', action.payload);
+          const { day, month, year } = action.payload || {};
+          if (day && month) {
+            const targetYear = year || new Date().getFullYear();
+            const targetDate = new Date(targetYear, month - 1, day);
+            const dateStr = targetDate.toISOString();
+            
+            setCycles((prevList) => {
+               const newList = prevList.map(c => ({ ...c }));
+               if (newList.length > 0 && !newList[newList.length - 1].endDate) {
+                   newList[newList.length - 1].endDate = dateStr;
+                   localStorage.setItem('cycles', JSON.stringify(newList));
+               }
+               return newList;
+            });
+          }
+          break;
+        }
         case 'GET_ADVICE_REQUESTED': {
           console.log('Бот просит данные для совета. Цикл начат?');
           if (!cycleRef.current) {
