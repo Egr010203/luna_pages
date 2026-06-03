@@ -305,15 +305,12 @@ export const App = () => {
 
         // ── Удаление последнего цикла ─────────────────────────────────────
         case 'DELETE_LAST_CYCLE': {
-          const current = cyclesRef.current;
-          if (current.length === 0) {
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
-            break;
-          }
-          const copy = current.slice(0, -1);
-          setCycles(copy);
-          localStorage.setItem('cycles', JSON.stringify(copy));
-          assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
+          setCycles((prev) => {
+            if (prev.length === 0) return prev;
+            const copy = prev.slice(0, -1);
+            localStorage.setItem('cycles', JSON.stringify(copy));
+            return copy;
+          });
           showStatus('Последний цикл удалён ✓');
           break;
         }
@@ -323,23 +320,21 @@ export const App = () => {
           const p = action.payload || {};
           if (!p.day || !p.month) break;
           const targetTime = toMidnight(new Date(p.year || new Date().getFullYear(), p.month - 1, p.day)).getTime();
-          
-          const current = cyclesRef.current;
-          const copy = current.filter(c => {
-            const start = isoToDay(c.startDate).getTime();
-            const end = c.endDate ? isoToDay(c.endDate).getTime() : toMidnight(new Date()).getTime();
-            return !(targetTime >= start && targetTime <= end);
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate).getTime();
+              const end = c.endDate ? isoToDay(c.endDate).getTime() : toMidnight(new Date()).getTime();
+              return !(targetTime >= start && targetTime <= end);
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
           });
-          
-          if (copy.length !== current.length) {
-            const normalized = normalizeCycles(copy);
-            setCycles(normalized);
-            localStorage.setItem('cycles', JSON.stringify(normalized));
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
-            showStatus('Цикл удалён ✓');
-          } else {
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
-          }
+          showStatus('Цикл удалён ✓');
           break;
         }
 
@@ -349,22 +344,20 @@ export const App = () => {
           if (!p.month) break;
           const month = p.month - 1;
           const year = p.year || new Date().getFullYear();
-          
-          const current = cyclesRef.current;
-          const copy = current.filter(c => {
-            const start = isoToDay(c.startDate);
-            return !(start.getMonth() === month && start.getFullYear() === year);
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate);
+              return !(start.getMonth() === month && start.getFullYear() === year);
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
           });
-          
-          if (copy.length !== current.length) {
-            const normalized = normalizeCycles(copy);
-            setCycles(normalized);
-            localStorage.setItem('cycles', JSON.stringify(normalized));
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
-            showStatus('Записи за месяц удалены ✓');
-          } else {
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
-          }
+          showStatus('Записи за месяц удалены ✓');
           break;
         }
 
@@ -374,24 +367,22 @@ export const App = () => {
           if (!p.from || !p.to) break;
           const fromTime = toMidnight(new Date(p.from.year, p.from.month - 1, p.from.day)).getTime();
           const toTime = toMidnight(new Date(p.to.year, p.to.month - 1, p.to.day)).getTime();
-          
-          const current = cyclesRef.current;
-          const copy = current.filter(c => {
-            const start = isoToDay(c.startDate).getTime();
-            const end = c.endDate ? isoToDay(c.endDate).getTime() : start;
-            // Оставляем цикл, если он строго до fromTime или строго после toTime
-            return start > toTime || end < fromTime;
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate).getTime();
+              const end = c.endDate ? isoToDay(c.endDate).getTime() : start;
+              // Оставляем цикл, если он строго до fromTime или строго после toTime
+              return start > toTime || end < fromTime;
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
           });
-          
-          if (copy.length !== current.length) {
-            const normalized = normalizeCycles(copy);
-            setCycles(normalized);
-            localStorage.setItem('cycles', JSON.stringify(normalized));
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
-            showStatus('Записи за период удалены ✓');
-          } else {
-            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
-          }
+          showStatus('Записи за период удалены ✓');
           break;
         }
 
@@ -512,6 +503,13 @@ export const App = () => {
     saveCycles(copy);
   };
 
+  const handleManualDeleteLast = () => {
+    if (cycles.length === 0) return;
+    const copy = cycles.slice(0, -1);
+    saveCycles(copy);
+    showStatus('Последний цикл удалён ✓');
+  };
+
   // ── Клик по ячейке календаря — ручная отметка дня ────────────────────────
   const handleDayClick = (date: Date) => {
     const clickedISO = dayToISO(date);
@@ -577,6 +575,15 @@ export const App = () => {
             title="Отметить конец цикла сегодня"
           >
             Завершить цикл
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={handleManualDeleteLast}
+            disabled={cycles.length === 0}
+            title="Удалить последний отмеченный цикл"
+            style={{ borderColor: 'rgba(255, 100, 100, 0.4)', color: cycles.length === 0 ? 'inherit' : '#ff6b6b' }}
+          >
+            Удалить последний
           </button>
         </div>
 
