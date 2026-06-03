@@ -303,6 +303,89 @@ export const App = () => {
           break;
         }
 
+        // ── Удаление последнего цикла ─────────────────────────────────────
+        case 'DELETE_LAST_CYCLE': {
+          setCycles((prev) => {
+            if (prev.length === 0) return prev;
+            const copy = prev.slice(0, -1);
+            localStorage.setItem('cycles', JSON.stringify(copy));
+            return copy;
+          });
+          showStatus('Последний цикл удалён ✓');
+          break;
+        }
+
+        // ── Удаление цикла по дате ────────────────────────────────────────
+        case 'DELETE_CYCLE_BY_DATE': {
+          const p = action.payload || {};
+          if (!p.day || !p.month) break;
+          const targetTime = toMidnight(new Date(p.year || new Date().getFullYear(), p.month - 1, p.day)).getTime();
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate).getTime();
+              const end = c.endDate ? isoToDay(c.endDate).getTime() : toMidnight(new Date()).getTime();
+              return !(targetTime >= start && targetTime <= end);
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
+          });
+          showStatus('Цикл удалён ✓');
+          break;
+        }
+
+        // ── Удаление цикла по месяцу ──────────────────────────────────────
+        case 'DELETE_CYCLE_BY_MONTH': {
+          const p = action.payload || {};
+          if (!p.month) break;
+          const month = p.month - 1;
+          const year = p.year || new Date().getFullYear();
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate);
+              return !(start.getMonth() === month && start.getFullYear() === year);
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
+          });
+          showStatus('Записи за месяц удалены ✓');
+          break;
+        }
+
+        // ── Удаление цикла по диапазону ───────────────────────────────────
+        case 'DELETE_CYCLE_BY_RANGE': {
+          const p = action.payload || {};
+          if (!p.from || !p.to) break;
+          const fromTime = toMidnight(new Date(p.from.year, p.from.month - 1, p.from.day)).getTime();
+          const toTime = toMidnight(new Date(p.to.year, p.to.month - 1, p.to.day)).getTime();
+          setCycles((prev) => {
+            const initialLen = prev.length;
+            const copy = prev.filter(c => {
+              const start = isoToDay(c.startDate).getTime();
+              const end = c.endDate ? isoToDay(c.endDate).getTime() : start;
+              // Оставляем цикл, если он строго до fromTime или строго после toTime
+              return start > toTime || end < fromTime;
+            });
+            if (copy.length !== initialLen) {
+              const normalized = normalizeCycles(copy);
+              localStorage.setItem('cycles', JSON.stringify(normalized));
+              return normalized;
+            }
+            return prev;
+          });
+          showStatus('Записи за период удалены ✓');
+          break;
+        }
+
         // ── Бот просит фронт дать совет ───────────────────────────────────
         case 'GET_ADVICE_REQUESTED': {
           const currentCycles = cyclesRef.current;
