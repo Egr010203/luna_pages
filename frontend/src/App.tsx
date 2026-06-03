@@ -305,12 +305,15 @@ export const App = () => {
 
         // ── Удаление последнего цикла ─────────────────────────────────────
         case 'DELETE_LAST_CYCLE': {
-          setCycles((prev) => {
-            if (prev.length === 0) return prev;
-            const copy = prev.slice(0, -1);
-            localStorage.setItem('cycles', JSON.stringify(copy));
-            return copy;
-          });
+          const current = cyclesRef.current;
+          if (current.length === 0) {
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
+            break;
+          }
+          const copy = current.slice(0, -1);
+          setCycles(copy);
+          localStorage.setItem('cycles', JSON.stringify(copy));
+          assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
           showStatus('Последний цикл удалён ✓');
           break;
         }
@@ -320,21 +323,23 @@ export const App = () => {
           const p = action.payload || {};
           if (!p.day || !p.month) break;
           const targetTime = toMidnight(new Date(p.year || new Date().getFullYear(), p.month - 1, p.day)).getTime();
-          setCycles((prev) => {
-            const initialLen = prev.length;
-            const copy = prev.filter(c => {
-              const start = isoToDay(c.startDate).getTime();
-              const end = c.endDate ? isoToDay(c.endDate).getTime() : toMidnight(new Date()).getTime();
-              return !(targetTime >= start && targetTime <= end);
-            });
-            if (copy.length !== initialLen) {
-              const normalized = normalizeCycles(copy);
-              localStorage.setItem('cycles', JSON.stringify(normalized));
-              return normalized;
-            }
-            return prev;
+          
+          const current = cyclesRef.current;
+          const copy = current.filter(c => {
+            const start = isoToDay(c.startDate).getTime();
+            const end = c.endDate ? isoToDay(c.endDate).getTime() : toMidnight(new Date()).getTime();
+            return !(targetTime >= start && targetTime <= end);
           });
-          showStatus('Цикл удалён ✓');
+          
+          if (copy.length !== current.length) {
+            const normalized = normalizeCycles(copy);
+            setCycles(normalized);
+            localStorage.setItem('cycles', JSON.stringify(normalized));
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
+            showStatus('Цикл удалён ✓');
+          } else {
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
+          }
           break;
         }
 
@@ -344,20 +349,22 @@ export const App = () => {
           if (!p.month) break;
           const month = p.month - 1;
           const year = p.year || new Date().getFullYear();
-          setCycles((prev) => {
-            const initialLen = prev.length;
-            const copy = prev.filter(c => {
-              const start = isoToDay(c.startDate);
-              return !(start.getMonth() === month && start.getFullYear() === year);
-            });
-            if (copy.length !== initialLen) {
-              const normalized = normalizeCycles(copy);
-              localStorage.setItem('cycles', JSON.stringify(normalized));
-              return normalized;
-            }
-            return prev;
+          
+          const current = cyclesRef.current;
+          const copy = current.filter(c => {
+            const start = isoToDay(c.startDate);
+            return !(start.getMonth() === month && start.getFullYear() === year);
           });
-          showStatus('Записи за месяц удалены ✓');
+          
+          if (copy.length !== current.length) {
+            const normalized = normalizeCycles(copy);
+            setCycles(normalized);
+            localStorage.setItem('cycles', JSON.stringify(normalized));
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
+            showStatus('Записи за месяц удалены ✓');
+          } else {
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
+          }
           break;
         }
 
@@ -367,22 +374,24 @@ export const App = () => {
           if (!p.from || !p.to) break;
           const fromTime = toMidnight(new Date(p.from.year, p.from.month - 1, p.from.day)).getTime();
           const toTime = toMidnight(new Date(p.to.year, p.to.month - 1, p.to.day)).getTime();
-          setCycles((prev) => {
-            const initialLen = prev.length;
-            const copy = prev.filter(c => {
-              const start = isoToDay(c.startDate).getTime();
-              const end = c.endDate ? isoToDay(c.endDate).getTime() : start;
-              // Оставляем цикл, если он строго до fromTime или строго после toTime
-              return start > toTime || end < fromTime;
-            });
-            if (copy.length !== initialLen) {
-              const normalized = normalizeCycles(copy);
-              localStorage.setItem('cycles', JSON.stringify(normalized));
-              return normalized;
-            }
-            return prev;
+          
+          const current = cyclesRef.current;
+          const copy = current.filter(c => {
+            const start = isoToDay(c.startDate).getTime();
+            const end = c.endDate ? isoToDay(c.endDate).getTime() : start;
+            // Оставляем цикл, если он строго до fromTime или строго после toTime
+            return start > toTime || end < fromTime;
           });
-          showStatus('Записи за период удалены ✓');
+          
+          if (copy.length !== current.length) {
+            const normalized = normalizeCycles(copy);
+            setCycles(normalized);
+            localStorage.setItem('cycles', JSON.stringify(normalized));
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_CONFIRMED' } });
+            showStatus('Записи за период удалены ✓');
+          } else {
+            assistantRef.current?.sendData({ action: { action_id: 'DELETE_NOT_FOUND' } });
+          }
           break;
         }
 
